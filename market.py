@@ -6,9 +6,10 @@ import datetime
 
 class Market(object):
 
-    def __init__(self):
+    def __init__(self, transaction_cost):
         self.companies = {}
         self.market_indices = {}
+        self.transaction_cost = transaction_cost
         for key in company:
             self.companies[company[key]] = {'name' : key}
         for key in market_index:
@@ -27,15 +28,21 @@ class Market(object):
                 else:
                     print('{} is not in market_data dictionaries.'.format(symbol))
 
-    def simulate(self, start_date, end_date):
+    def simulate(self, start_date, end_date, agents):
         print('Starting simulation for time period {} through {}.'.format(start_date, end_date))
         length = end_date - start_date
-        print('Length of simulation {}.'.format(length.days))
+        if length.days > 0:
+            day = start_date
+            while day < end_date:
+                print(day.strftime('%Y-%m-%d %a'))
+                day += datetime.timedelta(days=1)
 
 if __name__ == '__main__':
+    TRANSACTION_COST = 10.0
     print('Creating market')
-    market = Market()
+    market = Market(TRANSACTION_COST)
     print('Market data loaded')
     whole_start = datetime.date(2008, 11, 1)
-    whole_end = datetime.date(2018, 11, 1)
+    whole_end = datetime.date(2008, 12, 12)
     market.simulate(whole_start, whole_end)
+
