@@ -56,6 +56,25 @@ class Market(object):
                     print('{}\t{}\t{}'.format(date, ag.name, ag.calculate_net_worth()))
                 day += datetime.timedelta(days=1)
 
+    def create_simulation(self, start_date, end_date):
+        print('Starting simulation for time period {} through {}.'.format(start_date, end_date))
+        length = end_date - start_date
+        if length.days > 0:
+            day = start_date
+            while day < end_date:
+                info = {}
+                date = day.strftime('%Y-%m-%d')
+                for ind in self.market_indices:
+                    if date in self.market_indices[ind]['data'].index:
+                        info[ind] = self.market_indices[ind]['data'].loc[date]
+                for co in self.companies:
+                    try:
+                        if date in self.companies[co]['data'].index:
+                                info[co] = self.companies[co]['data'].loc[date]
+                    except KeyError:
+                        break
+                day += datetime.timedelta(days=1)
+
 if __name__ == '__main__':
     TRANSACTION_COST = 10.0
     print('Creating market')
