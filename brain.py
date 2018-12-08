@@ -20,7 +20,7 @@ class Brain(object):
         # model.add(Dense(int(input_dimension), activation='sigmoid'))
         model.add(LSTM(4*input_dimension))
         # model.add(Flatten())
-        model.add(Dense(input_dimension))
+        model.add(Dense(input_dimension, activation='softmax'))
         model.compile(loss='mean_absolute_error', optimizer='adam', metrics=['accuracy'])
         self.model = model
 

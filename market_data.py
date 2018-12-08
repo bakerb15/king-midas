@@ -1,4 +1,5 @@
-company = \
+from collections import OrderedDict
+company = OrderedDict(\
     {
         "Arotech Corporation" : "ARTX",
         #"Amazon.com, Inc." : "AMZN",
@@ -72,11 +73,11 @@ company = \
         "ePlus inc." : "PLUS",
         "Exponent, Inc." : "EXPO",
         "NIKE, Inc." :  "NKE"
-    }
+    })
 
-market_index = \
+market_index = OrderedDict(\
     {
         "S&P 500" : "^GSPC",
         "Dow Jones Industrial Average" : "^DJI",
         "Russell 2000 Index" : "^RUT"
-    }
+    })

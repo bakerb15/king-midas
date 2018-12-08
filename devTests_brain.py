@@ -5,50 +5,93 @@ import datetime
 import pandas
 import numpy as np
 import time
-from collections import OrderedDict
+import os
+from market_data import market_index, company
+from collections import OrderedDict, deque
+from dataprep import create_dataset
+
+# the stocks with largest increase by percentage
+def select_a( evidence , target, howmany):
+    howmany_hot = []
+    prepro = []
+    buffer = deque()
+    last = evidence[-1]
+    for i in range(len(target) - 1):
+        if i % 6 == 4:
+            close0 = last[i]
+            close1 = target[i]
+            if close0 > 0:
+                prc = (close1 - close0)/close0
+                prepro.append(prc)
+            else:
+                prepro.append(0.0)
+    for i in range(len(prepro)):
+        if len(buffer) < howmany:
+            buffer.append((i, prepro[i]))
+        else:
+            if prepro[i] > buffer[:-1][1]:
+                buffer.appendleft((i, prepro[i]))
+                while len(buffer) > howmany:
+                    buffer.pop()
+        sorted(buffer, reverse=True)
+    selected_indices = {}
+    for item in buffer:
+        selected_indices[item[0]] = True
+
+    for i in len(int(target/6)):
+        if i in selected_indices:
+            howmany_hot.append(1)
+        else:
+            howmany_hot.append(0)
+
+    return howmany_hot
 
 
-def create_dataset(dataset, forward=0, look_back=1):
-  dataX, dataY = [], []
-  for i in range(len(dataset)-look_back-forward+1):
-    a = dataset[i:(i+look_back), :]
-    dataX.append(a)
-    dataY.append(dataset[i + forward+look_back - 1, :])
-  return np.array(dataX), np.array(dataY)
+HISTORY = 20         # how many days to use for a prediction
+FUTURE = 20           # number of trading days to predict in the future
+HOW_MANY_TO_PICK = 8 # number of stocks to pick
 
 
+# path_to_sp500 = './data/^GSPC.csv'
+# path_to_comp1 = './data/BA.csv'
+# path_to_comp2 = './data/BP.csv'
+# path_to_comp3 = './data/CAT.csv'
+# sp = pandas.read_csv(path_to_sp500, index_col=0)
+# ba = pandas.read_csv(path_to_comp1, index_col=0)
+# bp = pandas.read_csv(path_to_comp2, index_col=0)
+# cat = pandas.read_csv(path_to_comp3, index_col=0)
+#
+# entities = [('^GSPC',sp) ,('BA', ba),('BP', bp), ('CAT', cat)]
 
-HISTORY = 30 # how many days to use for a prediction
-FUTURE = 15 # number of trading days to predict in the future
-COMPANIES = 3
+entities = OrderedDict()
+for symbol in company.values():
+    entities[symbol] = pandas.read_csv(os.path.join('./data/', symbol + '.csv'))
+for symbol in market_index.values():
+    entities[symbol] = pandas.read_csv(os.path.join('./data/', symbol + '.csv'))
 
-path_to_sp500 = './data/^GSPC.csv'
-path_to_comp1 = './data/BA.csv'
-path_to_comp2 = './data/BP.csv'
-path_to_comp3 = './data/CAT.csv'
-sp = pandas.read_csv(path_to_sp500, index_col=0)
-ba = pandas.read_csv(path_to_comp1, index_col=0)
-bp = pandas.read_csv(path_to_comp2, index_col=0)
-cat = pandas.read_csv(path_to_comp3, index_col=0)
-
-entities = [('^GSPC',sp) ,('BA', ba),('BP', bp), ('CAT', cat)]
 
 columns = ['Open','High','Low', 'Close','AdjClose','Volume']
 
-raw_dataframe = OrderedDict()
+raw_full = OrderedDict()
+raw_company_only = OrderedDict()
 
-for symbol, data in entities:
+for symbol in entities:
+    if symbol in company.values():
+        for col in columns:
+            raw_company_only['{}_{}'.format(symbol, col)] = entities[symbol][col].values
     for col in columns:
-        raw_dataframe['{}_{}'.format(symbol, col)] = data[col].values
-
-stock_market = pandas.DataFrame(raw_dataframe).values
+        raw_full['{}_{}'.format(symbol, col)] = entities[symbol][col].values
 
 
+full = pandas.DataFrame(raw_full).values
+company_only = pandas.DataFrame(raw_company_only).values
+#stock_markeraw_fullt = pandas.DataFrame(raw_dataframe).values
 
-split = np.array_split(stock_market, len(stock_market))
 
 
-train_x, train_y = create_dataset(stock_market, forward=FUTURE, look_back=HISTORY)
+train_x, train_y = create_dataset(full, company_only, select_a, HOW_MANY_TO_PICK, forward=FUTURE, look_back=HISTORY)
+
+
 # train_x = []
 # train_y = []
 # bufferx =[]
@@ -77,6 +120,7 @@ end_train = time.process_time()
 print('training time: {}'.format(end_train - start_train))
 
 result = b.model.predict(train_x)
+print(result)
 print('END')
 # TRANSACTION_COST = 10.0
 #print('Creating market')
