@@ -1,4 +1,5 @@
 from collections import deque
+from keras.models import model_from_json
 
 class Agent(object):
 

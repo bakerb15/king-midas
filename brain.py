@@ -1,5 +1,6 @@
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, LSTM, Flatten
+from keras import optimizers
 import os
 
 """
@@ -10,18 +11,22 @@ https://rubikscode.net/2018/03/26/two-ways-to-implement-lstm-network-using-pytho
 
 class Brain(object):
 
-    def __init__(self, input_length, input_dimension):
+    def __init__(self, input_length, input_dimension, output_dim):
 
         model = Sequential()
         # input_shape = (input_length, input_dim)
-        model.add(LSTM(input_shape=(input_length, input_dimension), return_sequences=True, units=(4*input_dimension)))
-        model.add(Dropout(0.2))
-        model.add(Dense(5*input_dimension))
-        # model.add(Dense(int(input_dimension), activation='sigmoid'))
-        model.add(LSTM(4*input_dimension))
-        # model.add(Flatten())
-        model.add(Dense(input_dimension, activation='softmax'))
-        model.compile(loss='mean_absolute_error', optimizer='adam', metrics=['accuracy'])
+        model.add(LSTM(input_shape=(input_length, input_dimension), return_sequences=True, units=(input_dimension)))
+        # model.add(Dropout(0.2))
+        # model.add(Dense(input_dimension))
+        # model.add(Dense(input_dimension, activation='sigmoid', use_bias=True))
+        # model.add(Dropout(0.2))
+        # model.add(Dense(2* int(input_dimension), activation='sigmoid'))
+        # model.add(LSTM(2*input_dimension))
+        # model.add(Dropout(0.2))
+        model.add(Flatten())
+        model.add(Dense(output_dim, activation='sigmoid'))
+        opt = optimizers.Adagrad(lr=0.001, clipvalue=0.01, clipnorm=0.1)
+        model.compile(loss='hinge',  optimizer=opt, metrics=['accuracy'])
         self.model = model
 
 if __name__ == '__main__':

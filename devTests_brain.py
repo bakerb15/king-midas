@@ -6,12 +6,13 @@ import pandas
 import numpy as np
 import time
 import os
+from sklearn.model_selection import train_test_split
 from market_data import market_index, company
 from collections import OrderedDict, deque
 from dataprep import create_dataset
 
 # the stocks with largest increase by percentage
-def select_a( evidence , target, howmany):
+def select_a( evidence , target, howmany, attributes_per_company):
     howmany_hot = []
     prepro = []
     buffer = deque()
@@ -29,7 +30,7 @@ def select_a( evidence , target, howmany):
         if len(buffer) < howmany:
             buffer.append((i, prepro[i]))
         else:
-            if prepro[i] > buffer[:-1][1]:
+            if prepro[i] > buffer[-1][1]:
                 buffer.appendleft((i, prepro[i]))
                 while len(buffer) > howmany:
                     buffer.pop()
@@ -38,36 +39,37 @@ def select_a( evidence , target, howmany):
     for item in buffer:
         selected_indices[item[0]] = True
 
-    for i in len(int(target/6)):
+    for i in range(int(len(target)/attributes_per_company)):
         if i in selected_indices:
-            howmany_hot.append(1)
+            howmany_hot.append(1.0)
         else:
-            howmany_hot.append(0)
+            howmany_hot.append(0.0)
 
     return howmany_hot
 
-
+CURRENT_DATE = pandas.datetime(2011, 11, 28)
 HISTORY = 20         # how many days to use for a prediction
 FUTURE = 20           # number of trading days to predict in the future
-HOW_MANY_TO_PICK = 8 # number of stocks to pick
-
-
-# path_to_sp500 = './data/^GSPC.csv'
-# path_to_comp1 = './data/BA.csv'
-# path_to_comp2 = './data/BP.csv'
-# path_to_comp3 = './data/CAT.csv'
-# sp = pandas.read_csv(path_to_sp500, index_col=0)
-# ba = pandas.read_csv(path_to_comp1, index_col=0)
-# bp = pandas.read_csv(path_to_comp2, index_col=0)
-# cat = pandas.read_csv(path_to_comp3, index_col=0)
-#
-# entities = [('^GSPC',sp) ,('BA', ba),('BP', bp), ('CAT', cat)]
-
+HOW_MANY_TO_PICK = 10 # number of stocks to pick
+ATTR_PER_COMPANY = 6  #number of attributes per company and market index
+COMPANIES_AND_INDICES = 0 # set when data is read in
+COMPANIES = 0 # set when datas read
+INPUT_VECTOR_DIM = 0 # set after data is read
 entities = OrderedDict()
 for symbol in company.values():
     entities[symbol] = pandas.read_csv(os.path.join('./data/', symbol + '.csv'))
+    entities[symbol]['Date'] = pandas.to_datetime(entities[symbol]['Date'], format='%Y-%m-%d')
+    mask = (entities[symbol]['Date'] < CURRENT_DATE)
+    entities[symbol] = entities[symbol].loc[mask]
+    COMPANIES_AND_INDICES += 1
+    COMPANIES += 1
 for symbol in market_index.values():
     entities[symbol] = pandas.read_csv(os.path.join('./data/', symbol + '.csv'))
+    entities[symbol]['Date'] = pandas.to_datetime(entities[symbol]['Date'], format='%Y-%m-%d')
+    mask = (entities[symbol]['Date'] < CURRENT_DATE)
+    entities[symbol] = entities[symbol].loc[mask]
+    COMPANIES_AND_INDICES += 1
+INPUT_VECTOR_DIM = COMPANIES_AND_INDICES * ATTR_PER_COMPANY
 
 
 columns = ['Open','High','Low', 'Close','AdjClose','Volume']
@@ -78,18 +80,17 @@ raw_company_only = OrderedDict()
 for symbol in entities:
     if symbol in company.values():
         for col in columns:
-            raw_company_only['{}_{}'.format(symbol, col)] = entities[symbol][col].values
+            raw_company_only['{}_{}'.format(symbol, col)] = entities[symbol][col]
     for col in columns:
-        raw_full['{}_{}'.format(symbol, col)] = entities[symbol][col].values
+        raw_full['{}_{}'.format(symbol, col)] = entities[symbol][col]
+
+
 
 
 full = pandas.DataFrame(raw_full).values
 company_only = pandas.DataFrame(raw_company_only).values
-#stock_markeraw_fullt = pandas.DataFrame(raw_dataframe).values
 
-
-
-train_x, train_y = create_dataset(full, company_only, select_a, HOW_MANY_TO_PICK, forward=FUTURE, look_back=HISTORY)
+X, Y = create_dataset(full, company_only, select_a, HOW_MANY_TO_PICK, ATTR_PER_COMPANY, forward=FUTURE, look_back=HISTORY)
 
 
 # train_x = []
@@ -107,26 +108,22 @@ train_x, train_y = create_dataset(full, company_only, select_a, HOW_MANY_TO_PICK
 #     else:
 #         bufferx.append(frame)
 
+b = Brain(HISTORY, INPUT_VECTOR_DIM, COMPANIES)
 
-
-
-b = Brain(HISTORY, 24)
-
+x_train, x_test, y_train, y_test =  train_test_split(X, Y, test_size=0.33)
 
 
 start_train = time.process_time()
-b.model.fit(train_x, train_y, epochs=10)
+b.model.fit(x_train, y_train, validation_data=(x_test, y_test), batch_size=10, epochs=5)
 end_train = time.process_time()
-print('training time: {}'.format(end_train - start_train))
+print('training and validation time: {}'.format(end_train - start_train))
 
-result = b.model.predict(train_x)
-print(result)
+model_json = b.model.to_json()
+with open("model.json", "w") as json_file:
+    json_file.write(model_json)
+b.model.save_weights('model.h5')
+
 print('END')
-# TRANSACTION_COST = 10.0
-#print('Creating market')
-# mrk = Market(TRANSACTION_COST)
-#print('Market data loaded')
-#whole_start = datetime.date(2009, 11, 3)
-#whole_end = datetime.date(2012, 12, 12)
+
 
 
