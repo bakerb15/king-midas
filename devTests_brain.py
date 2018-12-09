@@ -42,7 +42,7 @@ def select_a( evidence , target, howmany, attributes_per_company):
 
     for i in range(int(len(target)/attributes_per_company)):
         if i in selected_indices:
-            howmany_hot.append(1.0)
+            howmany_hot.append(1.0
         else:
             howmany_hot.append(0.0)
 
