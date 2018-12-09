@@ -17,7 +17,7 @@ def select_a( evidence , target, howmany, attributes_per_company):
     prepro = []
     buffer = deque()
     last = evidence[-1]
-    for i in range(len(target) - 1):
+    for i in range(len(target)):
         if i % 6 == 4:
             close0 = last[i]
             close1 = target[i]
@@ -30,11 +30,12 @@ def select_a( evidence , target, howmany, attributes_per_company):
         if len(buffer) < howmany:
             buffer.append((i, prepro[i]))
         else:
+            buffer = deque(sorted(buffer, key=lambda x: x[1], reverse=True))
             if prepro[i] > buffer[-1][1]:
                 buffer.appendleft((i, prepro[i]))
                 while len(buffer) > howmany:
                     buffer.pop()
-        sorted(buffer, reverse=True)
+
     selected_indices = {}
     for item in buffer:
         selected_indices[item[0]] = True
@@ -47,14 +48,30 @@ def select_a( evidence , target, howmany, attributes_per_company):
 
     return howmany_hot
 
-CURRENT_DATE = pandas.datetime(2011, 11, 28)
-HISTORY = 20         # how many days to use for a prediction
-FUTURE = 20           # number of trading days to predict in the future
-HOW_MANY_TO_PICK = 10 # number of stocks to pick
+# the stocks with largest increase by percentage
+def select_b( evidence , target, howmany, attributes_per_company):
+    howmany_hot = []
+    prepro = []
+    buffer = deque()
+    last = evidence[-1]
+    for i in range(len(target)):
+        if i % 6 == 4:
+            close0 = last[i]
+            close1 = target[i]
+            prc = (close1 - close0)/close0
+            prepro.append(prc)
+    return prepro
+
+CURRENT_DATE = pandas.datetime(2016, 11, 28)
+HISTORY = 100       # how many days to use for a prediction
+FUTURE = 30          # number of trading days to predict in the future
+HOW_MANY_TO_PICK = 10 # number of stocks to pick. Unused for select_b
 ATTR_PER_COMPANY = 6  #number of attributes per company and market index
 COMPANIES_AND_INDICES = 0 # set when data is read in
 COMPANIES = 0 # set when datas read
 INPUT_VECTOR_DIM = 0 # set after data is read
+
+
 entities = OrderedDict()
 for symbol in company.values():
     entities[symbol] = pandas.read_csv(os.path.join('./data/', symbol + '.csv'))
@@ -93,35 +110,20 @@ company_only = pandas.DataFrame(raw_company_only).values
 X, Y = create_dataset(full, company_only, select_a, HOW_MANY_TO_PICK, ATTR_PER_COMPANY, forward=FUTURE, look_back=HISTORY)
 
 
-# train_x = []
-# train_y = []
-# bufferx =[]
-# buffery =[]
-# for frame in split:
-#     if len(bufferx) == INPUT_LENGTH:
-#         buffery.append(frame)
-#         train_x.append(bufferx)
-#         train_y.append(buffery)
-#         bufferx = []
-#         buffery = []
-#         bufferx.append(frame)
-#     else:
-#         bufferx.append(frame)
-
 b = Brain(HISTORY, INPUT_VECTOR_DIM, COMPANIES)
 
-x_train, x_test, y_train, y_test =  train_test_split(X, Y, test_size=0.33)
+x_train, x_test, y_train, y_test =  train_test_split(X, Y, test_size=0.30)
 
 
 start_train = time.process_time()
-b.model.fit(x_train, y_train, validation_data=(x_test, y_test), batch_size=10, epochs=5)
+b.model.fit(x_train, y_train, validation_data=(x_test, y_test), batch_size=1, epochs=30)
 end_train = time.process_time()
 print('training and validation time: {}'.format(end_train - start_train))
 
 model_json = b.model.to_json()
-with open("model.json", "w") as json_file:
+with open("model_b.json", "w") as json_file:
     json_file.write(model_json)
-b.model.save_weights('model.h5')
+b.model.save_weights('model_b.h5')
 
 print('END')
 

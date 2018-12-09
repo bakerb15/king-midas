@@ -1,9 +1,13 @@
 from collections import deque
-from keras.models import model_from_json
+import pandas
+
+
+#last day in data 2018-11-01
+CURRENT_DATE = pandas.datetime(2016, 11, 28) # last day in training set
 
 class Agent(object):
 
-    def __init__(self, agent_name, starting_dollars, market_simulation):
+    def __init__(self, agent_name, starting_dollars, market_simulation, model):
         self.name = agent_name
         self.dollars = starting_dollars
         self.market_simulation = market_simulation
@@ -12,6 +16,7 @@ class Agent(object):
         self.MAX_KNOWLEDGE = 500
         self.last_company_price = {}
         self.last_market_index_price = {}
+        self.model = model
 
     def observe(self, date, info):
         if len(self.knowledge) < self.MAX_KNOWLEDGE:
@@ -34,6 +39,9 @@ class Agent(object):
             nw += self.last_company_price[stock]
         return nw
 
+    def build_portfolio(self, nn_input):
+        STEPS = len(nn_input)
+        return self.model.predict(nn_input, batch_size=1)
 
 
 
