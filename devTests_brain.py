@@ -9,7 +9,7 @@ import os
 from sklearn.model_selection import train_test_split
 from market_data import market_index, company
 from collections import OrderedDict, deque
-from dataprep import create_dataset
+from dataprep import create_dataset, create_dataset2
 
 # the stocks with largest increase by percentage
 def select_a( evidence , target, howmany, attributes_per_company):
@@ -42,7 +42,7 @@ def select_a( evidence , target, howmany, attributes_per_company):
 
     for i in range(int(len(target)/attributes_per_company)):
         if i in selected_indices:
-            howmany_hot.append(1.0
+            howmany_hot.append(1.0)
         else:
             howmany_hot.append(0.0)
 
@@ -62,10 +62,30 @@ def select_b( evidence , target, howmany, attributes_per_company):
             prepro.append(prc)
     return prepro
 
-CURRENT_DATE = pandas.datetime(2016, 11, 28)
+def select_only1(evidence, target, howmany, attributes_per_company):
+    howmany_hot = []
+    prepro = []
+    buffer = deque()
+    last = evidence[-1]
+    for i in range(len(target)):
+        if i % 6 == 4:
+            close0 = last[i]
+            close1 = target[i]
+            try:
+                prc = (close1 - close0)/close0
+                if prc > .05:
+                    prepro.append(1.0)
+                else:
+                    prepro.append(0.0)
+            except ZeroDivisionError:
+                    prepro.append(0.0)
+
+    return prepro
+
+CURRENT_DATE = pandas.datetime(2013, 11, 28)
 HISTORY = 100       # how many days to use for a prediction
 FUTURE = 30          # number of trading days to predict in the future
-HOW_MANY_TO_PICK = 10 # number of stocks to pick. Unused for select_b
+HOW_MANY_TO_PICK = 20 # number of stocks to pick. Unused for select_b
 ATTR_PER_COMPANY = 6  #number of attributes per company and market index
 COMPANIES_AND_INDICES = 0 # set when data is read in
 COMPANIES = 0 # set when datas read
@@ -107,7 +127,7 @@ for symbol in entities:
 full = pandas.DataFrame(raw_full).values
 company_only = pandas.DataFrame(raw_company_only).values
 
-X, Y = create_dataset(full, company_only, select_a, HOW_MANY_TO_PICK, ATTR_PER_COMPANY, forward=FUTURE, look_back=HISTORY)
+X, Y = create_dataset2(full, company_only, select_only1, HOW_MANY_TO_PICK, ATTR_PER_COMPANY, forward=FUTURE, look_back=HISTORY)
 
 
 b = Brain(HISTORY, INPUT_VECTOR_DIM, COMPANIES)
@@ -116,14 +136,14 @@ x_train, x_test, y_train, y_test =  train_test_split(X, Y, test_size=0.30)
 
 
 start_train = time.process_time()
-b.model.fit(x_train, y_train, validation_data=(x_test, y_test), batch_size=1, epochs=30)
+b.model.fit(x_train, y_train, validation_data=(x_test, y_test), batch_size=1, epochs=5)
 end_train = time.process_time()
 print('training and validation time: {}'.format(end_train - start_train))
 
 model_json = b.model.to_json()
-with open("model_b.json", "w") as json_file:
+with open("model_d2.json", "w") as json_file:
     json_file.write(model_json)
-b.model.save_weights('model_b.h5')
+b.model.save_weights('model_d2.h5')
 
 print('END')
 
